@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ancestors & Echoes - Family History Visualizer</title>
+    <meta name="description" content="Interactive family history visualization with dynamic timeline navigation">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="family-tree.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="app-title">
+                    <span class="title-icon">🌳</span>
+                    Ancestors & Echoes
+                </h1>
+                <p class="app-subtitle">Interactive Family History Timeline</p>
+            </div>
+            <div class="header-actions">
+                <button id="uploadBtn" class="btn btn-primary">
+                    <span class="btn-icon">📂</span>
+                    Upload CSV
+                </button>
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                <button id="downloadBtn" class="btn btn-secondary">
+                    <span class="btn-icon">💾</span>
+                    Download CSV
+                </button>
+            </div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="tree">
+                <span class="tab-icon">🌲</span>
+                Family Tree
+            </button>
+            <button class="tab-btn" data-tab="data">
+                <span class="tab-icon">📊</span>
+                Data Table
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Tree View Tab -->
+            <div id="treeTab" class="tab-content active">
+                <!-- Timeline Controls -->
+                <div class="timeline-controls">
+                    <div class="controls-header">
+                        <h2 class="controls-title">Timeline Navigation</h2>
+                        <div class="current-year-display" id="currentYearDisplay">1990</div>
+                    </div>
+
+                    <div class="slider-container">
+                        <div class="slider-labels">
+                            <span id="minYear" class="slider-label">1950</span>
+                            <span id="maxYear" class="slider-label">2025</span>
+                        </div>
+                        <input type="range" id="timelineSlider" class="timeline-slider" min="1950" max="2025"
+                            value="1990">
+                    </div>
+
+                    <div class="playback-controls">
+                        <button id="prevEventBtn" class="control-btn">
+                            <span class="control-icon">⏮</span>
+                            Previous Event
+                        </button>
+                        <button id="playBtn" class="control-btn control-btn-play">
+                            <span class="control-icon" id="playIcon">▶</span>
+                            <span id="playText">Play</span>
+                        </button>
+                        <button id="nextEventBtn" class="control-btn">
+                            <span class="control-icon">⏭</span>
+                            Next Event
+                        </button>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="legend">
+                        <h3 class="legend-title">Legend</h3>
+                        <div class="legend-grid">
+                            <div class="legend-item">
+                                <div class="legend-symbol circle family-alive"></div>
+                                <span>Family - Alive</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol circle family-dead"></div>
+                                <span>Family - Deceased</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol circle non-family-active"></div>
+                                <span>Partner - Active</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol circle non-family-inactive"></div>
+                                <span>Partner - Separated</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol circle non-family-dead"></div>
+                                <span>Partner - Deceased</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol line-solid"></div>
+                                <span>Active Relationship</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol line-dotted"></div>
+                                <span>Ended Relationship</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SVG Visualization Area -->
+                <div class="visualization-container">
+                    <svg id="familyTreeSvg" class="family-tree-svg"></svg>
+                    <div class="zoom-controls">
+                        <button id="zoomInBtn" class="zoom-btn" title="Zoom In">+</button>
+                        <button id="zoomResetBtn" class="zoom-btn" title="Reset Zoom">⟲</button>
+                        <button id="zoomOutBtn" class="zoom-btn" title="Zoom Out">−</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table Tab -->
+            <div id="dataTab" class="tab-content">
+                <div class="data-controls">
+                    <h2 class="data-title">Family History Data</h2>
+                    <button id="addRowBtn" class="btn btn-primary">
+                        <span class="btn-icon">➕</span>
+                        Add Event
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table id="dataTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>Type</th>
+                                <th>Person</th>
+                                <th>Person 2</th>
+                                <th>Person 3</th>
+                                <th>Gender</th>
+                                <th>Gender 2</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <!-- Data rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Visualize your family's journey through time • Built with D3.js & SVG</p>
+        </footer>
+    </div>
+
+    <!-- Add/Edit Event Modal -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Event</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <form id="eventForm" class="event-form">
+                <div class="form-group">
+                    <label for="eventYear">Year</label>
+                    <input type="number" id="eventYear" required min="1800" max="2100">
+                </div>
+
+                <div class="form-group">
+                    <label for="eventType">Event Type</label>
+                    <select id="eventType" required>
+                        <option value="">Select type...</option>
+                        <option value="birth">Birth</option>
+                        <option value="death">Death</option>
+                        <option value="relationship_start">Relationship Start</option>
+                        <option value="relationship_end">Relationship End</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventPerson">Person (Family Member)</label>
+                    <input type="text" id="eventPerson" required>
+                </div>
+
+                <div class="form-group" id="person2Group">
+                    <label for="eventPerson2">Person 2</label>
+                    <input type="text" id="eventPerson2">
+                    <small class="form-hint">For birth: family parent. For relationship: partner.</small>
+                </div>
+
+                <div class="form-group" id="person3Group">
+                    <label for="eventPerson3">Person 3</label>
+                    <input type="text" id="eventPerson3">
+                    <small class="form-hint">For birth: other parent.</small>
+                </div>
+
+                <div class="form-group" id="genderGroup">
+                    <label for="eventGender">Person Gender</label>
+                    <select id="eventGender">
+                        <option value="">Select gender...</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="non-binary">Non-binary</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="gender2Group">
+                    <label for="eventGender2">Person 2 Gender</label>
+                    <select id="eventGender2">
+                        <option value="">Select gender...</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="non-binary">Non-binary</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Event</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="family-tree.js"></script>
+</body>
+
+</html>
