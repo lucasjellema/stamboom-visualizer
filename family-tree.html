@@ -65,8 +65,13 @@
                             <span id="minYear" class="slider-label">1950</span>
                             <span id="maxYear" class="slider-label">2025</span>
                         </div>
-                        <input type="range" id="timelineSlider" class="timeline-slider" min="1950" max="2025"
-                            value="1990">
+                        <div class="dual-slider-wrapper">
+                            <div class="slider-track"></div>
+                            <input type="range" id="startYearSlider" class="timeline-slider" min="1950" max="2025"
+                                value="1950">
+                            <input type="range" id="timelineSlider" class="timeline-slider" min="1950" max="2025"
+                                value="1990">
+                        </div>
                     </div>
 
                     <div class="playback-controls">

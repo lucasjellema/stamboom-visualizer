@@ -56,6 +56,7 @@ class StateManager {
     constructor() {
         this.events = [];
         this.currentYear = 1990;
+        this.startYear = 1950;
         this.minYear = 1950;
         this.maxYear = 2025;
         this.isPlaying = false;
@@ -67,6 +68,8 @@ class StateManager {
         this.calculateYearRange();
         this.sortEvents();
     }
+
+
 
     parseCSV(csvString) {
         const lines = csvString.trim().split('\n');
@@ -91,6 +94,7 @@ class StateManager {
         const years = this.events.map(e => parseInt(e.year));
         this.minYear = Math.min(...years);
         this.maxYear = Math.max(...years);
+        this.startYear = this.minYear;
         this.currentYear = this.minYear;
     }
 
@@ -337,6 +341,7 @@ class FamilyTreeVisualization {
         this.focusedNodeId = null;
         this.lastTreeData = null;
         this.lastCurrentYear = null;
+        this.lastStartYear = null;
 
         this.initializeSVG();
     }
@@ -368,10 +373,11 @@ class FamilyTreeVisualization {
         this.nodesGroup = this.g.append('g').attr('class', 'nodes-layer');
     }
 
-    render(treeData, currentYear) {
+    render(treeData, currentYear, startYear) {
         // Store for re-rendering during focus operations
         this.lastTreeData = treeData;
         this.lastCurrentYear = currentYear;
+        this.lastStartYear = startYear;
 
         let workingNodes = treeData.nodes;
         let workingLinks = treeData.links;
@@ -387,10 +393,13 @@ class FamilyTreeVisualization {
             }
         }
 
-        // Filter nodes and links based on current year
-        const visibleNodes = workingNodes.filter(node =>
-            !node.birthYear || node.birthYear <= currentYear
-        );
+        // Filter nodes and links based on current year AND start year
+        const visibleNodes = workingNodes.filter(node => {
+            const bornBeforeCurrent = !node.birthYear || node.birthYear <= currentYear;
+            // Node is visible if they died AFTER start year (or haven't died)
+            const diedAfterStart = !node.deathYear || node.deathYear >= startYear;
+            return bornBeforeCurrent && diedAfterStart;
+        });
 
         const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
 
@@ -401,8 +410,10 @@ class FamilyTreeVisualization {
 
             const bothNodesVisible = visibleNodeIds.has(sourceId) && visibleNodeIds.has(targetId);
             const linkStarted = !link.startYear || link.startYear <= currentYear;
+            // Relationship is visible if it ended AFTER start year (or hasn't ended)
+            const linkEnded = !link.endYear || link.endYear >= startYear;
 
-            return bothNodesVisible && linkStarted && link.type === 'relationship';
+            return bothNodesVisible && linkStarted && linkEnded && link.type === 'relationship';
         });
 
         // Store nodes in map for easy access
@@ -426,19 +437,23 @@ class FamilyTreeVisualization {
         // Calculate generation ONLY for family members
         const generations = new Map();
 
-        const calculateGeneration = (nodeId, gen = 0) => {
+        const calculateGeneration = (nodeId, gen = 0, path = new Set()) => {
             const node = this.nodeMap.get(nodeId);
-            if (!node || !node.isFamilyMember) return;
+            if (!node || !node.isFamilyMember || path.has(nodeId)) return;
 
             const currentGen = generations.get(nodeId);
             if (currentGen !== undefined && currentGen >= gen) return; // Already processed at higher level
 
             generations.set(nodeId, gen);
+            path.add(nodeId);
 
             // Find children - any node that has this nodeId in their parents array
             nodes.forEach(otherNode => {
                 if (otherNode.parents && otherNode.parents.includes(nodeId)) {
-                    calculateGeneration(otherNode.id, gen + 1);
+                    // Avoid self-reference and deep cycles
+                    if (otherNode.id !== nodeId) {
+                        calculateGeneration(otherNode.id, gen + 1, new Set(path));
+                    }
                 }
             });
         };
@@ -510,56 +525,113 @@ class FamilyTreeVisualization {
 
         // Position nodes by generation
         const positioned = new Set();
+        const sortedGens = Array.from(generationGroups.keys()).sort((a, b) => a - b);
 
-        generationGroups.forEach((nodeIds, gen) => {
+        sortedGens.forEach((gen) => {
+            const nodeIds = generationGroups.get(gen);
             const y = 100 + gen * CONFIG.VERTICAL_SPACING;
 
-            // Separate family members from others
-            const familyMembers = nodeIds.filter(id => {
+            // Filter for family members in this generation
+            const generationFamilyMembers = nodeIds.filter(id => {
                 const node = this.nodeMap.get(id);
                 return node && node.isFamilyMember;
             });
 
-            // Calculate total width needed including partners
-            let totalWidth = 0;
-            familyMembers.forEach(nodeId => {
-                const partners = partnerPairs.get(nodeId) || [];
-                // Base width + width for ONE partner column (if any partners exist)
-                // We stack partners vertically, so width doesn't grow with partner count
-                const widthMultiplier = partners.length > 0 ? 2.0 : 1.0;
-                totalWidth += CONFIG.HORIZONTAL_SPACING * widthMultiplier;
-            });
+            // Group family members by their parents to keep siblings together
+            const units = [];
+            const visited = new Set();
 
-            let x = (this.width - totalWidth) / 2;
+            generationFamilyMembers.forEach(id => {
+                if (visited.has(id)) return;
+                const node = this.nodeMap.get(id);
+                // Siblings have the same parents
+                const parentKey = (node.parents || []).sort().join('|');
 
-            familyMembers.forEach(nodeId => {
-                const node = this.nodeMap.get(nodeId);
-                if (!node || positioned.has(nodeId)) return;
-
-                // Calculate width for this family member + partners (capped for vertical stacking)
-                const partners = partnerPairs.get(nodeId) || [];
-                const widthMultiplier = partners.length > 0 ? 2.0 : 1.0;
-                const groupWidth = CONFIG.HORIZONTAL_SPACING * widthMultiplier;
-
-                // Position the family member
-                node.x = x;
-                node.y = y;
-                positioned.add(nodeId);
-
-                // Position their partner(s) next to them (vertically stacked)
-                partners.forEach((partnerId, index) => {
-                    const partnerNode = this.nodeMap.get(partnerId);
-                    if (partnerNode && !positioned.has(partnerId)) {
-                        // All partners in the same column
-                        partnerNode.x = x + (CONFIG.HORIZONTAL_SPACING * 0.8);
-                        // Subsequent partners stacked vertically below the first one
-                        partnerNode.y = y + (index * 70);
-                        positioned.add(partnerId);
-                    }
+                const siblings = generationFamilyMembers.filter(otherId => {
+                    if (visited.has(otherId)) return false;
+                    const otherNode = this.nodeMap.get(otherId);
+                    const otherParentKey = (otherNode.parents || []).sort().join('|');
+                    return parentKey === otherParentKey;
                 });
 
-                // Move x position for next family member/group
-                x += groupWidth;
+                siblings.forEach(sId => visited.add(sId));
+
+                // Calculate unit width
+                let unitWidth = 0;
+                siblings.forEach(sId => {
+                    const partners = partnerPairs.get(sId) || [];
+                    unitWidth += CONFIG.HORIZONTAL_SPACING * (partners.length > 0 ? 2.0 : 1.0);
+                });
+
+                // Determine desired center based on parents' positions
+                let desiredX = this.width / 2;
+                if (node.parents && node.parents.length > 0) {
+                    let sumX = 0;
+                    let count = 0;
+                    node.parents.forEach(pId => {
+                        const pNode = this.nodeMap.get(pId);
+                        if (pNode && pNode.x !== undefined) {
+                            sumX += pNode.x;
+                            count++;
+                        }
+                    });
+                    if (count > 0) desiredX = sumX / count;
+                }
+
+                units.push({
+                    members: siblings,
+                    width: unitWidth,
+                    desiredX: desiredX,
+                    x: 0 // Will be calculated
+                });
+            });
+
+            // Sort units by their parents' X to maintain tree flow
+            units.sort((a, b) => a.desiredX - b.desiredX);
+
+            // Position units to avoid overlap
+            let currentXLimit = -10000; // Start far left
+            units.forEach(unit => {
+                let x = unit.desiredX - (unit.width / 2);
+                if (x < currentXLimit + 50) {
+                    x = currentXLimit + 50;
+                }
+                unit.x = x;
+                currentXLimit = x + unit.width;
+            });
+
+            // Re-center the entire generation based on the width of the display area
+            if (units.length > 0) {
+                const minX = units[0].x;
+                const maxX = units[units.length - 1].x + units[units.length - 1].width;
+                const totalLineWidth = maxX - minX;
+                const shift = (this.width - totalLineWidth) / 2 - minX;
+                units.forEach(u => u.x += shift);
+            }
+
+            // Assign final coordinates to nodes within units
+            units.forEach(unit => {
+                let nextX = unit.x;
+                unit.members.forEach(mId => {
+                    const node = this.nodeMap.get(mId);
+                    const partners = partnerPairs.get(mId) || [];
+                    const groupWidth = CONFIG.HORIZONTAL_SPACING * (partners.length > 0 ? 2.0 : 1.0);
+
+                    node.x = nextX;
+                    node.y = y;
+                    positioned.add(mId);
+
+                    partners.forEach((pId, idx) => {
+                        const pNode = this.nodeMap.get(pId);
+                        if (pNode && !positioned.has(pId)) {
+                            pNode.x = nextX + (CONFIG.HORIZONTAL_SPACING * 0.8);
+                            pNode.y = y + (idx * 70);
+                            positioned.add(pId);
+                        }
+                    });
+
+                    nextX += groupWidth;
+                });
             });
         });
 
@@ -877,7 +949,7 @@ class FamilyTreeVisualization {
 
         // Re-render with focus applied
         if (this.lastTreeData && this.lastCurrentYear) {
-            this.render(this.lastTreeData, this.lastCurrentYear);
+            this.render(this.lastTreeData, this.lastCurrentYear, this.lastStartYear);
         }
 
         // Center view on top (optional, feels better)
@@ -930,7 +1002,7 @@ class FamilyTreeVisualization {
             this.focusedNodeId = null;
             // Trigger full re-render
             if (this.lastTreeData && this.lastCurrentYear) {
-                this.render(this.lastTreeData, this.lastCurrentYear);
+                this.render(this.lastTreeData, this.lastCurrentYear, this.lastStartYear);
             }
         }
 
@@ -974,9 +1046,28 @@ class UIController {
         });
 
         // Timeline slider
+        // Start Year Slider
+        const startSlider = document.getElementById('startYearSlider');
+        startSlider.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value);
+            if (val > this.state.currentYear) {
+                val = this.state.currentYear;
+                e.target.value = val;
+            }
+            this.state.startYear = val;
+            document.getElementById('currentYearDisplay').textContent = `${this.state.startYear} - ${this.state.currentYear}`;
+            this.updateVisualization();
+        });
+
+        // Timeline slider
         const slider = document.getElementById('timelineSlider');
         slider.addEventListener('input', (e) => {
-            this.state.currentYear = parseInt(e.target.value);
+            let val = parseInt(e.target.value);
+            if (val < this.state.startYear) {
+                val = this.state.startYear;
+                e.target.value = val;
+            }
+            this.state.currentYear = val;
             this.updateVisualization();
         });
 
@@ -1033,13 +1124,19 @@ class UIController {
 
     updateUI() {
         // Update slider
+        // Update slider
         const slider = document.getElementById('timelineSlider');
         slider.min = this.state.minYear;
         slider.max = this.state.maxYear;
         slider.value = this.state.currentYear;
 
+        const startSlider = document.getElementById('startYearSlider');
+        startSlider.min = this.state.minYear;
+        startSlider.max = this.state.maxYear;
+        startSlider.value = this.state.startYear;
+
         // Update year displays
-        document.getElementById('currentYearDisplay').textContent = this.state.currentYear;
+        document.getElementById('currentYearDisplay').textContent = `${this.state.startYear} - ${this.state.currentYear}`;
         document.getElementById('minYear').textContent = this.state.minYear;
         document.getElementById('maxYear').textContent = this.state.maxYear;
 
@@ -1049,9 +1146,9 @@ class UIController {
     updateVisualization() {
         const events = this.state.getEventsUpToYear(this.state.currentYear);
         const treeData = this.builder.buildFromEvents(events);
-        this.viz.render(treeData, this.state.currentYear);
+        this.viz.render(treeData, this.state.currentYear, this.state.startYear);
 
-        document.getElementById('currentYearDisplay').textContent = this.state.currentYear;
+        document.getElementById('currentYearDisplay').textContent = `${this.state.startYear} - ${this.state.currentYear}`;
         document.getElementById('timelineSlider').value = this.state.currentYear;
     }
 
@@ -1301,6 +1398,6 @@ window.addEventListener('resize', () => {
         // Re-render with current data
         const events = app.state.getEventsUpToYear(app.state.currentYear);
         const treeData = app.builder.buildFromEvents(events);
-        app.viz.render(treeData, app.state.currentYear);
+        app.viz.render(treeData, app.state.currentYear, app.state.startYear);
     }
 });
