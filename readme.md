@@ -14,10 +14,11 @@ A stunning, interactive web application for visualizing family history through t
 
 ### 🎯 Core Functionality
 
-- **Dynamic Timeline Navigation**: Travel through your family history using an interactive slider
+- **Sliding-Window Timeline**: Travel through history using a dual-thumb slider to set a specific time window (`Start Year` to `Current Year`)
 - **Event-Based Playback**: Step through births, deaths, and relationships with Previous/Next controls
 - **Animated Transitions**: Smooth D3.js-powered animations as people and relationships appear/disappear
 - **Interactive SVG Visualization**: Drag nodes, zoom, pan, and explore your family tree
+- **Lineage-Aware Layout**: Balanced hierarchical positioning that clusters children directly under their parents
 - **Focus Mode**: Double-click any person to isolate their specific family branch (descendants)
 - **CSV Data Management**: Upload, edit, and download your family history data
 
@@ -25,12 +26,14 @@ A stunning, interactive web application for visualizing family history through t
 
 - **Premium "Midnight Glass" Design**: Glassmorphism effects with vibrant gradients
 - **Smart Connection Lines**: Children connect to the *midpoint* of their parents' relationship (with junction dots)
+- **Balanced Hierarchy**: Siblings are grouped and centered relative to their parents' position
+- **Cycle Detection**: Robust data handling that prevents crashes even with invalid parent-child loops
 - **Vertical Partner Stacking**: Keep the tree compact by stacking partners vertically
 - **Layered Rendering**: Advanced SVG layering prevents visual artifacts ("ghost lines") during animations
+- **Smart Filtering**: Relationships remain visible if they span into or through the selected time window
 - **Color-Coded Nodes**: Instantly identify family members, partners, and their status
 - **Gender Icons**: Visual indicators (♂ ♀ ⚧) for each person
 - **Relationship Lines**: Solid lines for active relationships, dotted for ended ones
-- **Responsive Layout**: Beautiful on desktop and mobile devices
 
 ### 📊 Data Capabilities
 
@@ -130,10 +133,11 @@ year,type,person,person2,person3,person_gender,person2_gender
 
 ### Timeline Navigation
 
-1. **Slider**: Drag the slider to any year to see the family state at that time
-2. **Previous Event**: Jump backward to the previous family event
-3. **Next Event**: Jump forward to the next family event
-4. **Play/Pause**: Auto-play through history at a steady pace
+1. **Dual-Thumb Slider**: Drag the left thumb to set the `Start Year` and the right thumb to set the `Current Year`. Only events occurring within this window are fully visualized.
+2. **Constraint**: The `Start Year` cannot be moved past the `Current Year`.
+3. **Previous Event**: Jump the `Current Year` backward to the previous family event
+4. **Next Event**: Jump the `Current Year` forward to the next family event
+5. **Play/Pause**: Auto-play through history (advances the `Current Year` thumb)
 
 ### Visualization Interaction
 
@@ -290,6 +294,15 @@ Edit `family-tree.css` CSS variables:
 ### Issue: Visualization doesn't load
 
 **Solution**: Check browser console (F12) for errors. Ensure D3.js CDN is accessible.
+
+---
+
+### Issue: Max Call Stack Size Exceeded (Recursion Error)
+
+**Solution**: This is usually caused by a **cycle** in your family data (e.g., a person listed as their own parent). Ensure:
+- Each person has a unique name identifier.
+- Children are not assigned parents who are actually themselves or their own descendants.
+- If you have two people with the same name, distinguish them (e.g., "Victoria (I)" and "Victoria (II)").
 
 ---
 
