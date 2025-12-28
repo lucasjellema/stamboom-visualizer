@@ -333,6 +333,11 @@ class FamilyTreeVisualization {
         this.zoom = null;
         this.nodeMap = new Map();
 
+        // Focus State
+        this.focusedNodeId = null;
+        this.lastTreeData = null;
+        this.lastCurrentYear = null;
+
         this.initializeSVG();
     }
 
@@ -364,15 +369,33 @@ class FamilyTreeVisualization {
     }
 
     render(treeData, currentYear) {
+        // Store for re-rendering during focus operations
+        this.lastTreeData = treeData;
+        this.lastCurrentYear = currentYear;
+
+        let workingNodes = treeData.nodes;
+        let workingLinks = treeData.links;
+
+        // Apply Focus Filter if active
+        if (this.focusedNodeId) {
+            const subTree = this.getSubTree(this.focusedNodeId, treeData.nodes, treeData.links);
+            // If the focused node is visible/valid, use the subtree. 
+            // Otherwise (e.g. node died or filtered out by year), stick to full tree or clear.
+            if (subTree.nodes.length > 0) {
+                workingNodes = subTree.nodes;
+                workingLinks = subTree.links;
+            }
+        }
+
         // Filter nodes and links based on current year
-        const visibleNodes = treeData.nodes.filter(node =>
+        const visibleNodes = workingNodes.filter(node =>
             !node.birthYear || node.birthYear <= currentYear
         );
 
         const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
 
         // Filter to ONLY relationship links (no parent-child links anymore)
-        const visibleLinks = treeData.links.filter(link => {
+        const visibleLinks = workingLinks.filter(link => {
             const sourceId = link.source.id || link.source;
             const targetId = link.target.id || link.target;
 
@@ -420,13 +443,17 @@ class FamilyTreeVisualization {
             });
         };
 
-        // Start with family members that have no parents
+        // Helper set for quick lookup of currently visible nodes (crucial for focus mode)
+        const visibleNodeIds = new Set(nodes.map(n => n.id));
+
+        // Start with family members that have no *visible* parents in the current view
         nodes.forEach(node => {
             if (!node.isFamilyMember) return;
 
-            const hasParent = node.parents && node.parents.length > 0;
+            // A node is a root if it has no parents, OR if its parents are filtered out (focus mode)
+            const hasVisibleParent = node.parents && node.parents.some(pId => visibleNodeIds.has(pId));
 
-            if (!hasParent) {
+            if (!hasVisibleParent) {
                 calculateGeneration(node.id, 0);
             }
         });
@@ -497,8 +524,10 @@ class FamilyTreeVisualization {
             let totalWidth = 0;
             familyMembers.forEach(nodeId => {
                 const partners = partnerPairs.get(nodeId) || [];
-                // Base width + extra for each partner (increased to 1.0 to fit text)
-                totalWidth += CONFIG.HORIZONTAL_SPACING * (1 + partners.length * 1.0);
+                // Base width + width for ONE partner column (if any partners exist)
+                // We stack partners vertically, so width doesn't grow with partner count
+                const widthMultiplier = partners.length > 0 ? 2.0 : 1.0;
+                totalWidth += CONFIG.HORIZONTAL_SPACING * widthMultiplier;
             });
 
             let x = (this.width - totalWidth) / 2;
@@ -507,22 +536,24 @@ class FamilyTreeVisualization {
                 const node = this.nodeMap.get(nodeId);
                 if (!node || positioned.has(nodeId)) return;
 
-                // Calculate width for this family member + partners
+                // Calculate width for this family member + partners (capped for vertical stacking)
                 const partners = partnerPairs.get(nodeId) || [];
-                const groupWidth = CONFIG.HORIZONTAL_SPACING * (1 + partners.length * 1.0);
+                const widthMultiplier = partners.length > 0 ? 2.0 : 1.0;
+                const groupWidth = CONFIG.HORIZONTAL_SPACING * widthMultiplier;
 
                 // Position the family member
                 node.x = x;
                 node.y = y;
                 positioned.add(nodeId);
 
-                // Position their partner(s) next to them
+                // Position their partner(s) next to them (vertically stacked)
                 partners.forEach((partnerId, index) => {
                     const partnerNode = this.nodeMap.get(partnerId);
                     if (partnerNode && !positioned.has(partnerId)) {
-                        // Increased spacing to 0.8 * HORIZONTAL_SPACING to fit year labels
-                        partnerNode.x = x + (index + 1) * (CONFIG.HORIZONTAL_SPACING * 0.8);
-                        partnerNode.y = y;
+                        // All partners in the same column
+                        partnerNode.x = x + (CONFIG.HORIZONTAL_SPACING * 0.8);
+                        // Subsequent partners stacked vertically below the first one
+                        partnerNode.y = y + (index * 70);
                         positioned.add(partnerId);
                     }
                 });
@@ -707,6 +738,28 @@ class FamilyTreeVisualization {
             .attr('x2', d => d.x2)
             .attr('y2', d => d.y2)
             .style('opacity', 1); // Instant visibility
+
+        // Identify unique junction points (midpoints on relationship lines)
+        // We only want to draw dots where lines actually connect
+        const junctionPoints = new Map();
+        drawingData.forEach(d => {
+            // Create a unique key for the coordinate
+            const key = `${d.x2},${d.y2}`;
+            if (!junctionPoints.has(key)) {
+                junctionPoints.set(key, { cx: d.x2, cy: d.y2 });
+            }
+        });
+
+        // Draw junction points
+        this.parentChildGroup.selectAll('.junction-point')
+            .data(Array.from(junctionPoints.values()))
+            .enter()
+            .append('circle')
+            .attr('class', 'junction-point')
+            .attr('cx', d => d.cx)
+            .attr('cy', d => d.cy)
+            .attr('r', 4)  // Small circle radius
+            .style('opacity', 1);
     }
 
     renderNodes(nodes, currentYear) {
@@ -723,7 +776,11 @@ class FamilyTreeVisualization {
             .append('g')
             .attr('class', 'node-group')
             .attr('transform', d => `translate(${d.x},${d.y})`) // Start at position
-            .style('cursor', 'pointer'); // Add pointer cursor for better feel
+            .style('cursor', 'pointer') // Add pointer cursor for better feel
+            .on('dblclick', (event, d) => {
+                event.stopPropagation();
+                this.setFocus(d.id);
+            });
 
         // Circle with POP animation
         nodeEnter.append('circle')
@@ -814,7 +871,69 @@ class FamilyTreeVisualization {
         }
     }
 
-    resetZoom() {
+    setFocus(nodeId) {
+        if (this.focusedNodeId === nodeId) return;
+        this.focusedNodeId = nodeId;
+
+        // Re-render with focus applied
+        if (this.lastTreeData && this.lastCurrentYear) {
+            this.render(this.lastTreeData, this.lastCurrentYear);
+        }
+
+        // Center view on top (optional, feels better)
+        this.resetZoom(false); // Reset transform only, don't clear focus here
+    }
+
+    getSubTree(rootId, allNodes, allLinks) {
+        const includedIds = new Set([rootId]);
+        const queue = [rootId];
+
+        while (queue.length > 0) {
+            const currentId = queue.shift();
+
+            // 1. Include Partners (for context)
+            // We just make them visible, we don't traverse down from them 
+            // (unless they are parents of the root's children, which are handled below)
+            allLinks.forEach(link => {
+                if (link.type === 'relationship') {
+                    const s = link.source.id || link.source;
+                    const t = link.target.id || link.target;
+                    if (s === currentId) includedIds.add(t);
+                    if (t === currentId) includedIds.add(s);
+                }
+            });
+
+            // 2. Find Children (Traverse Down)
+            allNodes.forEach(node => {
+                if (node.parents && node.parents.includes(currentId)) {
+                    if (!includedIds.has(node.id)) {
+                        includedIds.add(node.id);
+                        queue.push(node.id); // Continue traversal
+                    }
+                }
+            });
+        }
+
+        return {
+            nodes: allNodes.filter(n => includedIds.has(n.id)),
+            links: allLinks.filter(l => {
+                const s = l.source.id || l.source;
+                const t = l.target.id || l.target;
+                // Only include links if both parties are in our subtree
+                return includedIds.has(s) && includedIds.has(t);
+            })
+        };
+    }
+
+    resetZoom(clearFocus = true) {
+        if (clearFocus && this.focusedNodeId) {
+            this.focusedNodeId = null;
+            // Trigger full re-render
+            if (this.lastTreeData && this.lastCurrentYear) {
+                this.render(this.lastTreeData, this.lastCurrentYear);
+            }
+        }
+
         this.svg.transition()
             .duration(CONFIG.ANIMATION_DURATION)
             .call(this.zoom.transform, d3.zoomIdentity);

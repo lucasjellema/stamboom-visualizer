@@ -9,6 +9,10 @@ I've successfully created a **premium family history visualization web applicati
 - **Ghost Line Elimination**: Refactored rendering engine to use distinct SVG layers, ensuring old connection lines are completely wiped before re-rendering.
 - **Data Structure Optimization**: Redesigned internal data model to store parentage on nodes rather than as link objects, preventing spurious connections.
 - **Intelligent Spacing**: Fixed layout algorithm to account for partner width, preventing overlaps between family branches.
+- **Selectable Dropdowns**: Fixed UI issue where dropdown text was invisible in dark mode (white-on-white) by forcing dark background on options.
+- **Vertical Partner Stacking**: Improved layout so multiple partners are stacked vertically below the initial partner, keeping the timeline compact.
+- **Junction Points**: Added visual anchor circles where parent-child lines meet relationship lines for clearer lineage tracking.
+- **Focus Mode**: Double-clicking a node now isolates that branch (descendants only, treating the clicked node as root) for focused viewing.
 
 ---
 

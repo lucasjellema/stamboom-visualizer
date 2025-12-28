@@ -665,6 +665,11 @@ body::before {
     font-size: 0.9rem;
 }
 
+.data-table select option {
+    background-color: var(--color-deep-space);
+    color: var(--color-text-primary);
+}
+
 .data-table input:focus,
 .data-table select:focus {
     outline: none;
@@ -815,6 +820,11 @@ body::before {
     transition: all var(--transition-fast);
 }
 
+.form-group select option {
+    background-color: var(--color-deep-space);
+    color: var(--color-text-primary);
+}
+
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
@@ -909,6 +919,12 @@ body::before {
 .relationship-line:hover {
     stroke-width: 4px;
     filter: brightness(1.3);
+}
+
+.junction-point {
+    fill: var(--color-emerald-glow);
+    stroke: var(--color-deep-space);
+    stroke-width: 2px;
 }
 
 .link-year-label {

@@ -18,12 +18,14 @@ A stunning, interactive web application for visualizing family history through t
 - **Event-Based Playback**: Step through births, deaths, and relationships with Previous/Next controls
 - **Animated Transitions**: Smooth D3.js-powered animations as people and relationships appear/disappear
 - **Interactive SVG Visualization**: Drag nodes, zoom, pan, and explore your family tree
+- **Focus Mode**: Double-click any person to isolate their specific family branch (descendants)
 - **CSV Data Management**: Upload, edit, and download your family history data
 
 ### 🎨 Visual Excellence
 
 - **Premium "Midnight Glass" Design**: Glassmorphism effects with vibrant gradients
-- **Smart Connection Lines**: Children connect to the *midpoint* of their parents' relationship
+- **Smart Connection Lines**: Children connect to the *midpoint* of their parents' relationship (with junction dots)
+- **Vertical Partner Stacking**: Keep the tree compact by stacking partners vertically
 - **Layered Rendering**: Advanced SVG layering prevents visual artifacts ("ghost lines") during animations
 - **Color-Coded Nodes**: Instantly identify family members, partners, and their status
 - **Gender Icons**: Visual indicators (♂ ♀ ⚧) for each person
