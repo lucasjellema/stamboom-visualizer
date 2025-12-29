@@ -2,10 +2,12 @@ export default class StateManager {
     constructor() {
         this.events = [];
         this.currentYear = 1990;
+        this.startYear = 1950;
         this.minYear = 1950;
         this.maxYear = 2025;
         this.isPlaying = false;
         this.playInterval = null;
+        this.labelMode = 'years'; // 'years' or 'age'
     }
 
     loadData(csvString) {
@@ -15,12 +17,15 @@ export default class StateManager {
     }
 
     parseCSV(csvString) {
+        if (!csvString) return [];
         const lines = csvString.trim().split('\n');
+        if (lines.length < 2) return [];
+
         const headers = lines[0].split(',').map(h => h.trim());
         const events = [];
 
         for (let i = 1; i < lines.length; i++) {
-            const values = lines[i].split(',').map(v => v.trim());
+            const values = this.parseCSVLine(lines[i]);
             const event = {};
             headers.forEach((header, index) => {
                 event[header] = values[index] || '';
@@ -31,13 +36,35 @@ export default class StateManager {
         return events;
     }
 
+    /**
+     * Simple CSV line parser that handles quoted values with commas
+     */
+    parseCSVLine(line) {
+        const result = [];
+        let curValue = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(curValue.trim());
+                curValue = '';
+            } else {
+                curValue += char;
+            }
+        }
+        result.push(curValue.trim());
+        return result;
+    }
+
     calculateYearRange() {
         if (this.events.length === 0) return;
 
         const years = this.events.map(e => parseInt(e.year));
         this.minYear = Math.min(...years);
         this.maxYear = Math.max(...years);
-        this.currentYear = this.minYear;
     }
 
     sortEvents() {
@@ -65,9 +92,13 @@ export default class StateManager {
     }
 
     exportCSV() {
-        const headers = ['year', 'type', 'person', 'person2', 'person3', 'person_gender', 'person2_gender'];
+        const headers = ['year', 'type', 'person', 'person2', 'person3', 'person_gender', 'person2_gender', 'person2_year', 'description'];
         const rows = this.events.map(event =>
-            headers.map(h => event[h] || '').join(',')
+            headers.map(h => {
+                const val = event[h] || '';
+                // Quote values that contain commas
+                return val.toString().includes(',') ? `"${val}"` : val;
+            }).join(',')
         );
         return [headers.join(','), ...rows].join('\n');
     }

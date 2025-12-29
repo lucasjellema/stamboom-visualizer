@@ -3,8 +3,11 @@ import StateManager from './state-manager.js';
 import FamilyTreeBuilder from './family-tree-builder.js';
 import FamilyTreeVisualization from './visualization.js';
 import UIController from './ui-controller.js';
+import UITable from './ui-table.js';
 
-// Global app object
+/**
+ * Entry point for Ancestors & Echoes
+ */
 const app = {
     state: null,
     builder: null,
@@ -15,24 +18,25 @@ const app = {
 // Make accessible globally for inline event handlers (e.g. data table buttons)
 window.app = app;
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Initializing Ancestors & Echoes modules...');
 
-    // Initialize components
+    // Initialize core components
     app.state = new StateManager();
     app.builder = new FamilyTreeBuilder();
     app.viz = new FamilyTreeVisualization('familyTreeSvg');
-    app.ui = new UIController(app.state, app.builder, app.viz);
 
-    // Load mock data
+    // Initialize UI controllers
+    app.ui = new UIController(app.state, app.builder, app.viz);
+    app.ui.table = new UITable(app.state, app.ui);
+
+    // Initial load
     app.state.loadData(MOCK_CSV_DATA);
     app.ui.updateUI();
 
     console.log('🌳 Ancestors & Echoes - Modularized & Ready!');
 });
 
-// Handle window resize
 window.addEventListener('resize', () => {
     if (app.viz) {
         const container = app.viz.svg.node().parentElement;
@@ -40,9 +44,7 @@ window.addEventListener('resize', () => {
         app.viz.height = container.clientHeight - 32;
         app.viz.svg.attr('width', app.viz.width).attr('height', app.viz.height);
 
-        // Re-render with current data
-        const events = app.state.getEventsUpToYear(app.state.currentYear);
-        const treeData = app.builder.buildFromEvents(events);
-        app.viz.render(treeData, app.state.currentYear);
+        // Re-render
+        app.ui.updateVisualization();
     }
 });

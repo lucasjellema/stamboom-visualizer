@@ -1,137 +1,164 @@
 import { CONFIG } from './constants.js';
 
-export function calculateLayout(nodes, links, currentYear, width, nodeMap) {
-    // Calculate generation ONLY for family members
+/**
+ * Calculates a hierarchical layout for the family tree.
+ * Positions nodes based on generations and sibling groups.
+ */
+export function calculateHierarchicalLayout(nodes, links, currentYear, width, nodeMap) {
+    // 1. Calculate generation ONLY for family members
     const generations = new Map();
 
-    const calculateGeneration = (nodeId, gen = 0) => {
+    const calculateGeneration = (nodeId, gen = 0, path = new Set()) => {
         const node = nodeMap.get(nodeId);
-        if (!node || !node.isFamilyMember) return;
+        if (!node || !node.isFamilyMember || path.has(nodeId)) return;
 
         const currentGen = generations.get(nodeId);
         if (currentGen !== undefined && currentGen >= gen) return; // Already processed at higher level
 
         generations.set(nodeId, gen);
+        path.add(nodeId);
 
         // Find children - any node that has this nodeId in their parents array
         nodes.forEach(otherNode => {
             if (otherNode.parents && otherNode.parents.includes(nodeId)) {
-                calculateGeneration(otherNode.id, gen + 1);
+                if (otherNode.id !== nodeId) {
+                    calculateGeneration(otherNode.id, gen + 1, new Set(path));
+                }
             }
         });
     };
 
-    // Start with family members that have no parents
+    const visibleNodeIds = new Set(nodes.map(n => n.id));
+
+    // Start with family members that have no *visible* parents in the current view
     nodes.forEach(node => {
         if (!node.isFamilyMember) return;
-
-        const hasParent = node.parents && node.parents.length > 0;
-
-        if (!hasParent) {
+        const hasVisibleParent = node.parents && node.parents.some(pId => visibleNodeIds.has(pId));
+        if (!hasVisibleParent) {
             calculateGeneration(node.id, 0);
         }
     });
 
-    // Position non-family members at their spouse's generation
+    // 2. Position non-family members at their spouse's generation
     nodes.forEach(node => {
         if (node.isFamilyMember || generations.has(node.id)) return;
-
-        // Find their partner who is a family member
         links.forEach(link => {
             if (link.type !== 'relationship') return;
-
-            const sourceId = link.source.id || link.source;
-            const targetId = link.target.id || link.target;
-
-            if (sourceId === node.id && generations.has(targetId)) {
-                generations.set(node.id, generations.get(targetId));
-            } else if (targetId === node.id && generations.has(sourceId)) {
-                generations.set(node.id, generations.get(sourceId));
-            }
+            const sId = link.source.id || link.source;
+            const tId = link.target.id || link.target;
+            if (sId === node.id && generations.has(tId)) generations.set(node.id, generations.get(tId));
+            else if (tId === node.id && generations.has(sId)) generations.set(node.id, generations.get(sId));
         });
     });
 
-    // Group nodes by generation
+    // 3. Group nodes by generation
     const generationGroups = new Map();
     generations.forEach((gen, nodeId) => {
-        if (!generationGroups.has(gen)) {
-            generationGroups.set(gen, []);
-        }
+        if (!generationGroups.has(gen)) generationGroups.set(gen, []);
         generationGroups.get(gen).push(nodeId);
     });
 
-    // Find partner pairs for positioning (ALL relationships, even ended ones, to prevent overlap)
-    const partnerPairs = new Map(); // familyMember -> [partners]
+    // 4. Find partner pairs for positioning
+    const partnerPairs = new Map();
     links.forEach(link => {
         if (link.type !== 'relationship') return;
-
-        const sourceId = link.source.id || link.source;
-        const targetId = link.target.id || link.target;
-
-        // REMOVED isActive check to keep ex-partners positioned correctly
-
-        const sourceNode = nodeMap.get(sourceId);
-        const targetNode = nodeMap.get(targetId);
-
-        if (sourceNode && targetNode) {
-            if (sourceNode.isFamilyMember && !targetNode.isFamilyMember) {
-                if (!partnerPairs.has(sourceId)) partnerPairs.set(sourceId, []);
-                partnerPairs.get(sourceId).push(targetId);
-            } else if (targetNode.isFamilyMember && !sourceNode.isFamilyMember) {
-                if (!partnerPairs.has(targetId)) partnerPairs.set(targetId, []);
-                partnerPairs.get(targetId).push(sourceId);
+        const sId = link.source.id || link.source;
+        const tId = link.target.id || link.target;
+        const sNode = nodeMap.get(sId);
+        const tNode = nodeMap.get(tId);
+        if (sNode && tNode) {
+            if (sNode.isFamilyMember && !tNode.isFamilyMember) {
+                if (!partnerPairs.has(sId)) partnerPairs.set(sId, []);
+                partnerPairs.get(sId).push(tId);
+            } else if (tNode.isFamilyMember && !sNode.isFamilyMember) {
+                if (!partnerPairs.has(tId)) partnerPairs.set(tId, []);
+                partnerPairs.get(tId).push(sId);
             }
         }
     });
 
-    // Position nodes by generation
+    // 5. Position nodes by generation
     const positioned = new Set();
+    const sortedGens = Array.from(generationGroups.keys()).sort((a, b) => a - b);
 
-    generationGroups.forEach((nodeIds, gen) => {
+    sortedGens.forEach((gen) => {
+        const nodeIds = generationGroups.get(gen);
         const y = 100 + gen * CONFIG.VERTICAL_SPACING;
+        const generationFamilyMembers = nodeIds.filter(id => nodeMap.get(id)?.isFamilyMember);
 
-        // Separate family members from others
-        const familyMembers = nodeIds.filter(id => {
+        // Group family members by their parents to keep siblings together
+        const units = [];
+        const visited = new Set();
+
+        generationFamilyMembers.forEach(id => {
+            if (visited.has(id)) return;
             const node = nodeMap.get(id);
-            return node && node.isFamilyMember;
-        });
-
-        // Calculate total width needed including partners
-        let totalWidth = 0;
-        familyMembers.forEach(nodeId => {
-            const partners = partnerPairs.get(nodeId) || [];
-            // Base width + extra for each partner (increased to 1.0 to fit text)
-            totalWidth += CONFIG.HORIZONTAL_SPACING * (1 + partners.length * 1.0);
-        });
-
-        let x = (width - totalWidth) / 2;
-
-        familyMembers.forEach(nodeId => {
-            const node = nodeMap.get(nodeId);
-            if (!node || positioned.has(nodeId)) return;
-
-            // Calculate width for this family member + partners
-            const partners = partnerPairs.get(nodeId) || [];
-            const groupWidth = CONFIG.HORIZONTAL_SPACING * (1 + partners.length * 1.0);
-
-            // Position the family member
-            node.x = x;
-            node.y = y;
-            positioned.add(nodeId);
-
-            // Position their partner(s) next to them
-            partners.forEach((partnerId, index) => {
-                const partnerNode = nodeMap.get(partnerId);
-                if (partnerNode && !positioned.has(partnerId)) {
-                    // Increased spacing to 0.8 * HORIZONTAL_SPACING to fit year labels
-                    partnerNode.x = x + (index + 1) * (CONFIG.HORIZONTAL_SPACING * 0.8);
-                    partnerNode.y = y;
-                    positioned.add(partnerId);
-                }
+            const parentKey = (node.parents || []).sort().join('|');
+            const siblings = generationFamilyMembers.filter(otherId => {
+                if (visited.has(otherId)) return false;
+                const otherNode = nodeMap.get(otherId);
+                return (otherNode.parents || []).sort().join('|') === parentKey;
             });
 
-            // Move x position for next family member/group
-            x += groupWidth;
+            siblings.forEach(sId => visited.add(sId));
+
+            let unitWidth = 0;
+            siblings.forEach(sId => {
+                const partners = partnerPairs.get(sId) || [];
+                unitWidth += CONFIG.HORIZONTAL_SPACING * (partners.length > 0 ? 2.0 : 1.0);
+            });
+
+            let desiredX = width / 2;
+            if (node.parents && node.parents.length > 0) {
+                let sumX = 0, count = 0;
+                node.parents.forEach(pId => {
+                    const pNode = nodeMap.get(pId);
+                    if (pNode && pNode.x !== undefined) {
+                        sumX += pNode.x;
+                        count++;
+                    }
+                });
+                if (count > 0) desiredX = sumX / count;
+            }
+
+            units.push({ members: siblings, width: unitWidth, desiredX: desiredX, x: 0 });
+        });
+
+        units.sort((a, b) => a.desiredX - b.desiredX);
+
+        let currentXLimit = -10000;
+        units.forEach(unit => {
+            let x = unit.desiredX - (unit.width / 2);
+            if (x < currentXLimit + 50) x = currentXLimit + 50;
+            unit.x = x;
+            currentXLimit = x + unit.width;
+        });
+
+        if (units.length > 0) {
+            const minX = units[0].x;
+            const maxX = units[units.length - 1].x + units[units.length - 1].width;
+            const shift = (width - (maxX - minX)) / 2 - minX;
+            units.forEach(u => u.x += shift);
+        }
+
+        units.forEach(unit => {
+            let nextX = unit.x;
+            unit.members.forEach(mId => {
+                const node = nodeMap.get(mId);
+                const partners = partnerPairs.get(mId) || [];
+                node.x = nextX;
+                node.y = y;
+                positioned.add(mId);
+                partners.forEach((pId, idx) => {
+                    const pNode = nodeMap.get(pId);
+                    if (pNode && !positioned.has(pId)) {
+                        pNode.x = nextX + (CONFIG.HORIZONTAL_SPACING * 0.8);
+                        pNode.y = y + (idx * 70);
+                        positioned.add(pId);
+                    }
+                });
+                nextX += CONFIG.HORIZONTAL_SPACING * (partners.length > 0 ? 2.0 : 1.0);
+            });
         });
     });
 

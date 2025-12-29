@@ -9,8 +9,6 @@ export default class FamilyTreeBuilder {
         this.relationships = [];
 
         events.forEach(event => {
-            const year = parseInt(event.year); // Handle unused var lint if strict, but kept for clarity
-
             switch (event.type) {
                 case 'birth':
                     this.handleBirth(event);
@@ -38,6 +36,8 @@ export default class FamilyTreeBuilder {
         const parent1 = event.person2;
         const parent2 = event.person3;
         const gender = event.person_gender;
+        const description = event.description;
+        const birthYear = parseInt(event.year);
 
         // Add the person being born
         if (!this.people.has(person)) {
@@ -46,52 +46,49 @@ export default class FamilyTreeBuilder {
                 name: person,
                 gender: gender,
                 isFamilyMember: true,
-                birthYear: parseInt(event.year),
+                birthYear: birthYear,
                 deathYear: null,
                 relationships: [],
-                parents: [] // Store parents here instead of as links
+                parents: [],
+                descriptions: description ? [description] : []
             });
+        } else {
+            const p = this.people.get(person);
+            if (!p.birthYear) p.birthYear = birthYear;
+            if (gender && !p.gender) p.gender = gender;
+            if (description) p.descriptions.push(description);
         }
 
         // Add parents if not already present
-        if (parent1 && !this.people.has(parent1)) {
-            this.people.set(parent1, {
-                id: parent1,
-                name: parent1,
-                gender: '',
-                isFamilyMember: true,
-                birthYear: null,
-                deathYear: null,
-                relationships: [],
-                parents: []
-            });
-        }
-
-        if (parent2 && !this.people.has(parent2)) {
-            this.people.set(parent2, {
-                id: parent2,
-                name: parent2,
-                gender: '',
-                isFamilyMember: false,
-                birthYear: null,
-                deathYear: null,
-                relationships: [],
-                parents: []
-            });
-        }
+        [parent1, parent2].forEach((parent, index) => {
+            if (parent && !this.people.has(parent)) {
+                this.people.set(parent, {
+                    id: parent,
+                    name: parent,
+                    gender: '',
+                    isFamilyMember: index === 0, // First parent usually family
+                    birthYear: null,
+                    deathYear: null,
+                    relationships: [],
+                    parents: [],
+                    descriptions: []
+                });
+            }
+        });
 
         // Store parent information on the child node
         const child = this.people.get(person);
         if (parent1) child.parents.push(parent1);
         if (parent2) child.parents.push(parent2);
-
-        // DO NOT create parent-child relationship links
     }
 
     handleDeath(event) {
         const person = event.person;
+        const description = event.description;
         if (this.people.has(person)) {
-            this.people.get(person).deathYear = parseInt(event.year);
+            const p = this.people.get(person);
+            p.deathYear = parseInt(event.year);
+            if (description) p.descriptions.push(description);
         }
     }
 
@@ -99,6 +96,9 @@ export default class FamilyTreeBuilder {
         const person1 = event.person;
         const person2 = event.person2;
         const gender2 = event.person2_gender;
+        const birthYear2 = event.person2_year ? parseInt(event.person2_year) : null;
+        const description = event.description;
+        const startYear = parseInt(event.year);
 
         // Add person2 if not already present
         if (!this.people.has(person2)) {
@@ -107,35 +107,39 @@ export default class FamilyTreeBuilder {
                 name: person2,
                 gender: gender2,
                 isFamilyMember: false,
-                birthYear: null,
+                birthYear: birthYear2,
                 deathYear: null,
-                relationships: []
+                relationships: [],
+                descriptions: []
             });
+        } else {
+            const p2 = this.people.get(person2);
+            if (birthYear2 && !p2.birthYear) p2.birthYear = birthYear2;
+            if (gender2 && !p2.gender) p2.gender = gender2;
+        }
+
+        if (description && this.people.has(person1)) {
+            this.people.get(person1).descriptions.push(description);
         }
 
         // Track relationship in person objects
-        if (this.people.has(person1)) {
-            this.people.get(person1).relationships.push({
-                partner: person2,
-                startYear: parseInt(event.year),
-                endYear: null
-            });
-        }
-
-        if (this.people.has(person2)) {
-            this.people.get(person2).relationships.push({
-                partner: person1,
-                startYear: parseInt(event.year),
-                endYear: null
-            });
-        }
+        [person1, person2].forEach((pId, idx) => {
+            const otherId = idx === 0 ? person2 : person1;
+            if (this.people.has(pId)) {
+                this.people.get(pId).relationships.push({
+                    partner: otherId,
+                    startYear: startYear,
+                    endYear: null
+                });
+            }
+        });
 
         // Create relationship link
         this.relationships.push({
             source: person1,
             target: person2,
             type: 'relationship',
-            startYear: parseInt(event.year),
+            startYear: startYear,
             endYear: null,
             active: true
         });
@@ -146,18 +150,14 @@ export default class FamilyTreeBuilder {
         const person2 = event.person2;
         const endYear = parseInt(event.year);
 
-        // Update relationship status in person objects
-        if (this.people.has(person1)) {
-            const rel = this.people.get(person1).relationships.find(r => r.partner === person2);
-            if (rel) rel.endYear = endYear;
-        }
+        [person1, person2].forEach(pId => {
+            if (this.people.has(pId)) {
+                const otherId = pId === person1 ? person2 : person1;
+                const rel = this.people.get(pId).relationships.find(r => r.partner === otherId);
+                if (rel) rel.endYear = endYear;
+            }
+        });
 
-        if (this.people.has(person2)) {
-            const rel = this.people.get(person2).relationships.find(r => r.partner === person1);
-            if (rel) rel.endYear = endYear;
-        }
-
-        // Update relationship link
         const link = this.relationships.find(r =>
             r.type === 'relationship' &&
             ((r.source === person1 && r.target === person2) ||
