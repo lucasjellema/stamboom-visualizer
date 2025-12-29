@@ -63,7 +63,28 @@ export default class UITable {
             form.reset();
             this.updateFields('');
         }
+
+        this.updatePersonDatalist();
         document.getElementById('eventModal').classList.add('active');
+    }
+
+    updatePersonDatalist() {
+        const datalist = document.getElementById('personList');
+        if (!datalist) return;
+
+        const people = new Set();
+        this.state.events.forEach(e => {
+            if (e.person) people.add(e.person);
+            if (e.person2) people.add(e.person2);
+            if (e.person3) people.add(e.person3);
+        });
+
+        datalist.innerHTML = '';
+        Array.from(people).sort().forEach(person => {
+            const option = document.createElement('option');
+            option.value = person;
+            datalist.appendChild(option);
+        });
     }
 
     closeModal() {

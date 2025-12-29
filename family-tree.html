@@ -217,18 +217,19 @@
 
                 <div class="form-group">
                     <label for="eventPerson">Person (Family Member)</label>
-                    <input type="text" id="eventPerson" required>
+                    <input type="text" id="eventPerson" list="personList" required>
+                    <datalist id="personList"></datalist>
                 </div>
 
                 <div class="form-group" id="person2Group">
                     <label for="eventPerson2">Person 2</label>
-                    <input type="text" id="eventPerson2">
+                    <input type="text" id="eventPerson2" list="personList">
                     <small class="form-hint">For birth: family parent. For relationship: partner.</small>
                 </div>
 
                 <div class="form-group" id="person3Group">
                     <label for="eventPerson3">Person 3</label>
-                    <input type="text" id="eventPerson3">
+                    <input type="text" id="eventPerson3" list="personList">
                     <small class="form-hint">For birth: other parent.</small>
                 </div>
 
