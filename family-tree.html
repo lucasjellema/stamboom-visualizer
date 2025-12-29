@@ -157,6 +157,8 @@
                                 <th>Person 3</th>
                                 <th>Gender</th>
                                 <th>Gender 2</th>
+                                <th>Year 2</th>
+                                <th>Description</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -173,6 +175,9 @@
             <p>Visualize your family's journey through time • Built with D3.js & SVG</p>
         </footer>
     </div>
+
+    <!-- Tooltip -->
+    <div id="nodeTooltip" class="tooltip"></div>
 
     <!-- Add/Edit Event Modal -->
     <div id="eventModal" class="modal">
@@ -233,6 +238,18 @@
                         <option value="female">Female</option>
                         <option value="non-binary">Non-binary</option>
                     </select>
+                </div>
+
+                <div class="form-group" id="person2YearGroup">
+                    <label for="eventPerson2Year">Person 2 Birth Year</label>
+                    <input type="number" id="eventPerson2Year" min="1800" max="2100">
+                    <small class="form-hint">Used in relationship starters for non-family members.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventDescription">Description / Background</label>
+                    <textarea id="eventDescription" rows="3"></textarea>
+                    <small class="form-hint">Additional information about the person or event.</small>
                 </div>
 
                 <div class="form-actions">

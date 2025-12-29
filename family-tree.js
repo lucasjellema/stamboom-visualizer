@@ -32,21 +32,25 @@ const CONFIG = {
 // MOCK DATA
 // ========================================
 
-const MOCK_CSV_DATA = `year,type,person,person2,person3,person_gender,person2_gender
-1950,birth,John,,,,male
-1952,birth,Mary,,,,female
-1975,relationship_start,John,Sarah,,male,female
-1977,birth,Alice,John,Sarah,female,
-1980,birth,Bob,John,Sarah,male,
-1995,relationship_end,John,Sarah,,male,female
-1998,relationship_start,Alice,Michael,,female,male
-2000,birth,Emma,Alice,Michael,female,
-2005,relationship_start,Bob,Jennifer,,male,female
-2008,birth,Lucas,Bob,Jennifer,male,
-2010,birth,Sophia,Bob,Jennifer,female,
-2015,death,John,,,,male
-2020,relationship_start,Emma,David,,female,male
-2025,birth,Oliver,Emma,David,male,`;
+const MOCK_CSV_DATA = `year,type,person,person2,person3,person_gender,person2_gender,person2_year,description
+1950,birth,John,,,,male,,Founder of the family line
+1952,birth,Mary,,,,female,,
+1975,relationship_start,John,Sarah,,male,female,1953,Met Sarah during a summer festival in London.
+1976,relationship_start,Mary,Monica,,,female,1957
+1977,birth,Alice,John,Sarah,female,,,Born in the historic district.
+1980,birth,Bob,John,Sarah,male,,,
+1995,relationship_end,John,Sarah,,male,female,,
+1998,relationship_start,Alice,Michael,,female,male,1975,
+2000,birth,Emma,Alice,Michael,female,,,
+2005,relationship_start,Bob,Jennifer,,male,female,1982,
+2008,birth,Lucas,Bob,Jennifer,male,,,
+2010,birth,Sophia,Bob,Jennifer,female,,,
+2015,death,John,,,,,,Passed away peacefully at home.
+2020,relationship_start,Emma,David,,female,male,1995,
+2024,death,Sarah
+2025,birth,Oliver,Emma,David,male,,,The youngest member of the current generation.`;
+
+
 
 // ========================================
 // STATE MANAGEMENT
@@ -123,9 +127,13 @@ class StateManager {
     }
 
     exportCSV() {
-        const headers = ['year', 'type', 'person', 'person2', 'person3', 'person_gender', 'person2_gender'];
+        const headers = ['year', 'type', 'person', 'person2', 'person3', 'person_gender', 'person2_gender', 'person2_year', 'description'];
         const rows = this.events.map(event =>
-            headers.map(h => event[h] || '').join(',')
+            headers.map(h => {
+                const val = event[h] || '';
+                // Quote values that contain commas
+                return val.toString().includes(',') ? `"${val}"` : val;
+            }).join(',')
         );
         return [headers.join(','), ...rows].join('\n');
     }
@@ -192,6 +200,7 @@ class FamilyTreeBuilder {
         const parent1 = event.person2;
         const parent2 = event.person3;
         const gender = event.person_gender;
+        const description = event.description;
 
         // Add the person being born
         if (!this.people.has(person)) {
@@ -203,8 +212,15 @@ class FamilyTreeBuilder {
                 birthYear: parseInt(event.year),
                 deathYear: null,
                 relationships: [],
-                parents: [] // Store parents here instead of as links
+                parents: [], // Store parents here instead of as links
+                descriptions: description ? [description] : []
             });
+        } else {
+            // Update existing entry if needed (e.g. if created as parent first)
+            const p = this.people.get(person);
+            if (!p.birthYear) p.birthYear = parseInt(event.year);
+            if (gender && !p.gender) p.gender = gender;
+            if (description) p.descriptions.push(description);
         }
 
         // Add parents if not already present
@@ -217,7 +233,8 @@ class FamilyTreeBuilder {
                 birthYear: null,
                 deathYear: null,
                 relationships: [],
-                parents: []
+                parents: [],
+                descriptions: []
             });
         }
 
@@ -230,7 +247,8 @@ class FamilyTreeBuilder {
                 birthYear: null,
                 deathYear: null,
                 relationships: [],
-                parents: []
+                parents: [],
+                descriptions: []
             });
         }
 
@@ -244,8 +262,11 @@ class FamilyTreeBuilder {
 
     handleDeath(event) {
         const person = event.person;
+        const description = event.description;
         if (this.people.has(person)) {
-            this.people.get(person).deathYear = parseInt(event.year);
+            const p = this.people.get(person);
+            p.deathYear = parseInt(event.year);
+            if (description) p.descriptions.push(description);
         }
     }
 
@@ -253,6 +274,8 @@ class FamilyTreeBuilder {
         const person1 = event.person;
         const person2 = event.person2;
         const gender2 = event.person2_gender;
+        const birthYear2 = event.person2_year ? parseInt(event.person2_year) : null;
+        const description = event.description;
 
         // Add person2 if not already present
         if (!this.people.has(person2)) {
@@ -261,10 +284,27 @@ class FamilyTreeBuilder {
                 name: person2,
                 gender: gender2,
                 isFamilyMember: false,
-                birthYear: null,
+                birthYear: birthYear2,
                 deathYear: null,
-                relationships: []
+                relationships: [],
+                descriptions: []
             });
+        } else {
+            // Update person2 birthYear if it was unknown
+            const p2 = this.people.get(person2);
+            if (birthYear2 && !p2.birthYear) {
+                p2.birthYear = birthYear2;
+            }
+            if (gender2 && !p2.gender) {
+                p2.gender = gender2;
+            }
+        }
+
+        // If there's a description for this event, add it to person1 (or both?)
+        // The prompt says "used in other types for similar background information"
+        // Usually these descriptions relate to the primary person of the event.
+        if (description && this.people.has(person1)) {
+            this.people.get(person1).descriptions.push(description);
         }
 
         // Track relationship in person objects
@@ -863,6 +903,9 @@ class FamilyTreeVisualization {
                 if (d.deathYear && d.deathYear <= currentYear) classes += ' deceased';
                 return classes;
             })
+            .on('mouseover', (event, d) => this.showTooltip(event, d))
+            .on('mousemove', (event) => this.moveTooltip(event))
+            .on('mouseout', () => this.hideTooltip())
             .transition() // Animate "pop"
             .duration(400)
             .ease(d3.easeBackOut.overshoot(1.7)) // Bouncy effect
@@ -941,6 +984,35 @@ class FamilyTreeVisualization {
 
             return hasActiveRelationship ? CONFIG.COLORS.nonFamilyActive : CONFIG.COLORS.nonFamilyInactive;
         }
+    }
+
+    showTooltip(event, d) {
+        const tooltip = d3.select('#nodeTooltip');
+        const birthStr = d.birthYear ? d.birthYear : 'Unknown';
+        const deathStr = d.deathYear ? ` - ${d.deathYear}` : '';
+        const descriptionStr = d.descriptions && d.descriptions.length > 0
+            ? d.descriptions.join('<br>')
+            : 'No description available.';
+
+        tooltip.html(`
+            <span class="tooltip-name">${d.name}</span>
+            <span class="tooltip-meta">Born: ${birthStr}${deathStr}</span>
+            <span class="tooltip-desc">${descriptionStr}</span>
+        `);
+
+        tooltip.classed('active', true);
+        this.moveTooltip(event);
+    }
+
+    moveTooltip(event) {
+        const tooltip = d3.select('#nodeTooltip');
+        tooltip
+            .style('left', (event.pageX + 15) + 'px')
+            .style('top', (event.pageY - 15) + 'px');
+    }
+
+    hideTooltip() {
+        d3.select('#nodeTooltip').classed('active', false);
     }
 
     setFocus(nodeId) {
@@ -1248,6 +1320,8 @@ class UIController {
                 <td>${event.person3 || '-'}</td>
                 <td>${event.person_gender || '-'}</td>
                 <td>${event.person2_gender || '-'}</td>
+                <td>${event.person2_year || '-'}</td>
+                <td title="${event.description || ''}">${event.description ? (event.description.length > 30 ? event.description.substring(0, 30) + '...' : event.description) : '-'}</td>
                 <td class="table-actions">
                     <button class="table-action-btn" onclick="app.ui.editEvent(${index})">Edit</button>
                     <button class="table-action-btn delete" onclick="app.ui.deleteEvent(${index})">Delete</button>
@@ -1271,6 +1345,8 @@ class UIController {
             document.getElementById('eventPerson3').value = eventData.person3 || '';
             document.getElementById('eventGender').value = eventData.person_gender || '';
             document.getElementById('eventGender2').value = eventData.person2_gender || '';
+            document.getElementById('eventPerson2Year').value = eventData.person2_year || '';
+            document.getElementById('eventDescription').value = eventData.description || '';
             this.updateFormFields(eventData.type);
         } else {
             document.getElementById('modalTitle').textContent = 'Add Event';
@@ -1292,9 +1368,10 @@ class UIController {
         const person3Group = document.getElementById('person3Group');
         const genderGroup = document.getElementById('genderGroup');
         const gender2Group = document.getElementById('gender2Group');
+        const person2YearGroup = document.getElementById('person2YearGroup');
 
         // Reset visibility
-        [person2Group, person3Group, genderGroup, gender2Group].forEach(el => {
+        [person2Group, person3Group, genderGroup, gender2Group, person2YearGroup].forEach(el => {
             el.style.display = 'block';
         });
 
@@ -1302,11 +1379,13 @@ class UIController {
             case 'birth':
                 person3Group.style.display = 'block';
                 gender2Group.style.display = 'none';
+                person2YearGroup.style.display = 'none';
                 break;
             case 'death':
                 person2Group.style.display = 'none';
                 person3Group.style.display = 'none';
                 gender2Group.style.display = 'none';
+                person2YearGroup.style.display = 'none';
                 break;
             case 'relationship_start':
                 person3Group.style.display = 'none';
@@ -1315,6 +1394,7 @@ class UIController {
                 person3Group.style.display = 'none';
                 genderGroup.style.display = 'none';
                 gender2Group.style.display = 'none';
+                person2YearGroup.style.display = 'none';
                 break;
             default:
                 break;
@@ -1331,7 +1411,9 @@ class UIController {
             person2: document.getElementById('eventPerson2').value,
             person3: document.getElementById('eventPerson3').value,
             person_gender: document.getElementById('eventGender').value,
-            person2_gender: document.getElementById('eventGender2').value
+            person2_gender: document.getElementById('eventGender2').value,
+            person2_year: document.getElementById('eventPerson2Year').value,
+            description: document.getElementById('eventDescription').value
         };
 
         if (this.editingIndex !== null) {

@@ -1,4 +1,4 @@
-year,type,person,person2,person3,person_gender,person2_gender
+year,type,person,person2,person3,person_gender,person2_gender,person2_year,description
 1819,birth,Victoria,George III (lijn),Victoria v. Saxe-Coburg,female,
 1819,birth,Prins Albert,Ernest I,Louise v. Saxe-Gotha,male,
 1840,birth,Princess Victoria,Prins Albert,Victoria,female,
@@ -22,12 +22,10 @@ year,type,person,person2,person3,person_gender,person2_gender
 1894,birth,King Edward VIII,King George V,Princess Mary of Teck,male,
 1895,birth,King George VI,King George V,Princess Mary of Teck,male,
 1897,birth,Princess Mary,King George V,Princess Mary of Teck,female,
-1900,birth,Elizabeth Bowes-Lyon,Claude Bowes-Lyon,Cecilia Cavendish,female,
 1901,death,Victoria,,,,
 1902,birth,George Duke of Kent,King George V,Princess Mary of Teck,male,
 1905,birth,Prince John,King George V,Princess Mary of Teck,male,
 1910,death,King Edward VII,,,,
-1921,birth,Prins Philip,Andrew of Greece,Alice of Battenberg,male,
 1923,relationship_start,King George VI,Elizabeth Bowes-Lyon,,,female
 1926,birth,Elizabeth II,King George VI,Elizabeth Bowes-Lyon,female,
 1930,birth,Princess Margaret,King George VI,Elizabeth Bowes-Lyon,female,
