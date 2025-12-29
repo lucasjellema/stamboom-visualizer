@@ -20,6 +20,7 @@ A stunning, interactive web application for visualizing family history through t
 - **Interactive SVG Visualization**: Drag nodes, zoom, pan, and explore your family tree
 - **Lineage-Aware Layout**: Balanced hierarchical positioning that clusters children directly under their parents
 - **Focus Mode**: Double-click any person to isolate their specific family branch (descendants)
+- **Rich Tooltips**: Hover over nodes to see event summaries and custom descriptions
 - **CSV Data Management**: Upload, edit, and download your family history data
 
 ### 🎨 Visual Excellence
@@ -56,7 +57,7 @@ No installation required! This is a static web application.
 1. **Download the files**:
    - `family-tree.html`
    - `family-tree.css`
-   - `family-tree.js`
+   - `js/` (Directory containing modular logic)
 
 2. **Open in browser**:
    ```
@@ -84,12 +85,12 @@ No installation required! This is a static web application.
 Your family history CSV should follow this exact structure:
 
 ```csv
-year,type,person,person2,person3,person_gender,person2_gender
-1950,birth,John,,,,male
-1975,relationship_start,John,Sarah,,male,female
-1977,birth,Alice,John,Sarah,female,
-2015,death,John,,,,male
-1995,relationship_end,John,Sarah,,male,female
+year,type,person,person2,person3,person_gender,person2_gender,person2_year,description
+1950,birth,John,,,,male,,
+1975,relationship_start,John,Sarah,,male,female,1952,Met at college
+1977,birth,Alice,John,Sarah,female,,,Born at home
+2015,death,John,,,,male,,Old age
+1995,relationship_end,John,Sarah,,male,female,,Amicable split
 ```
 
 ### Field Descriptions
@@ -103,6 +104,8 @@ year,type,person,person2,person3,person_gender,person2_gender
 | **person3** | For birth only: the other parent | Optional |
 | **person_gender** | Gender: `male`, `female`, `non-binary` | Optional |
 | **person2_gender** | Gender of person2 (used in relationship_start) | Optional |
+| **person2_year** | Birth year of person2 (used for spouses) | Optional |
+| **description** | Custom details/notes for the event | Optional |
 
 ### Event Type Rules
 
@@ -121,10 +124,13 @@ year,type,person,person2,person3,person_gender,person2_gender
 - **person2**: Their partner
 - **person_gender**: Gender of family member
 - **person2_gender**: Gender of partner
+- **person2_year**: Birth year of the partner (displays in visualization)
+- **description**: Note about the relationship (shows in tooltip)
 
 #### Relationship End
 - **person**: Family member
 - **person2**: Their partner
+- **description**: Reason/Details for the end of relationship
 - Other fields empty
 
 ---
@@ -185,11 +191,16 @@ year,type,person,person2,person3,person_gender,person2_gender
 ### Component Structure
 
 ```
-FamilyTreeApp
-├── StateManager          # Data and timeline state management
-├── FamilyTreeBuilder     # Converts events into graph structure
-├── FamilyTreeVisualization  # D3.js rendering and animations
-└── UIController          # User interaction and event handling
+FamilyTreeApp (js/)
+├── main.js               # Application entry point & initialization
+├── state-manager.js      # Data and timeline state management
+├── family-tree-builder.js # Graph structure assembly
+├── layout-engine.js      # Hierarchical positioning algorithms
+├── renderer.js           # SVG/D3.js rendering logic
+├── visualization.js      # Zoom/Pan & Interaction handling
+├── ui-controller.js      # Timeline & Header controls
+├── ui-table.js           # Data table management
+└── constants.js          # Shared configuration & themes
 ```
 
 ### Key Technologies
@@ -238,17 +249,12 @@ Navigate through this timeline to see the family grow and change!
 
 ### Modify Visualization Settings
 
-Edit `family-tree.js` CONFIG object:
+Edit `js/constants.js` CONFIG object:
 
 ```javascript
-const CONFIG = {
+export const CONFIG = {
     NODE_RADIUS: 25,          // Size of person circles
-    NODE_CHARGE: -800,        // Force between nodes
-    LINK_DISTANCE: 150,       // Preferred distance between connected nodes
-    ANIMATION_DURATION: 500,  // Transition speed (ms)
-    PLAYBACK_SPEED: 500,      // Auto-play speed (ms per year)
-    // ... colors and icons
-};
+    // ...
 ```
 
 ### Change Color Scheme
@@ -286,7 +292,7 @@ Edit `family-tree.css` CSS variables:
 ### Issue: CSV won't load
 
 **Solution**: Ensure:
-- First row has exact headers: `year,type,person,person2,person3,person_gender,person2_gender`
+- First row has exact headers: `year,type,person,person2,person3,person_gender,person2_gender,person2_year,description`
 - No empty lines at the end
 - Years are 4-digit numbers
 - Event types match exactly: `birth`, `death`, `relationship_start`, `relationship_end`
