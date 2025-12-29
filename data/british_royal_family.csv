@@ -1,24 +1,23 @@
 year,type,person,person2,person3,person_gender,person2_gender,person2_year,description
-1819,birth,Victoria,George III (lijn),Victoria v. Saxe-Coburg,female,
-1819,birth,Prins Albert,Ernest I,Louise v. Saxe-Gotha,male,
-1840,birth,Princess Victoria,Prins Albert,Victoria,female,
-1840,relationship_start,Victoria,Prins Albert,,,male
-1841,birth,King Edward VII,Prins Albert,Victoria,male,
-1843,birth,Princess Alice,Prins Albert,Victoria,female,
-1844,birth,Prince Alfred,Prins Albert,Victoria,male,
-1846,birth,Princess Helena,Prins Albert,Victoria,female,
-1848,birth,Princess Louise,Prins Albert,Victoria,female,
-1850,birth,Prince Arthur,Prins Albert,Victoria,male,
-1853,birth,Prince Leopold,Prins Albert,Victoria,male,
-1857,birth,Princess Beatrice,Prins Albert,Victoria,female,
-1861,death,Prins Albert,,,,
+1819,birth,Victoria,,,female,
+1840,relationship_start,Victoria,Prince Albert,,,male,1819
+1840,birth,Princess Victoria,Prince Albert,Victoria,female,
+1841,birth,King Edward VII,Prince Albert,Victoria,male,
+1843,birth,Princess Alice,Prince Albert,Victoria,female,
+1846,birth,Princess Helena,Prince Albert,Victoria,female,
+1848,birth,Princess Louise,Prince Albert,Victoria,female,
+1850,birth,Prince Arthur,Prince Albert,Victoria,male,
+1853,birth,Prince Leopold,Prince Albert,Victoria,male,
+1857,birth,Princess Beatrice,Prince Albert,Victoria,female,
+1861,death,Prince Albert,,,,
+1863,relationship_start,King Edward VII,Alexandra of Denmark,,,female,1844
 1864,birth,Prince Albert Victor,King Edward VII,Alexandra of Denmark,male,
 1865,birth,King George V,King Edward VII,Alexandra of Denmark,male,
 1867,birth,Princess Louise,King Edward VII,Alexandra of Denmark,female,
 1868,birth,Princess Victoria,King Edward VII,Alexandra of Denmark,female,
 1869,birth,Princess Maud,King Edward VII,Alexandra of Denmark,female,
 1871,birth,Prince Alexander,King Edward VII,Alexandra of Denmark,male,
-1893,relationship_start,King George V,Princess Mary of Teck,,,female
+1893,relationship_start,King George V,Princess Mary of Teck,,,female,1867
 1894,birth,King Edward VIII,King George V,Princess Mary of Teck,male,
 1895,birth,King George VI,King George V,Princess Mary of Teck,male,
 1897,birth,Princess Mary,King George V,Princess Mary of Teck,female,
@@ -26,47 +25,48 @@ year,type,person,person2,person3,person_gender,person2_gender,person2_year,descr
 1902,birth,George Duke of Kent,King George V,Princess Mary of Teck,male,
 1905,birth,Prince John,King George V,Princess Mary of Teck,male,
 1910,death,King Edward VII,,,,
-1923,relationship_start,King George VI,Elizabeth Bowes-Lyon,,,female
+1923,relationship_start,King George VI,Elizabeth Bowes-Lyon,,,female,1900
 1926,birth,Elizabeth II,King George VI,Elizabeth Bowes-Lyon,female,
 1930,birth,Princess Margaret,King George VI,Elizabeth Bowes-Lyon,female,
-1937,relationship_start,Edward VIII,Wallis Simpson,,,female
-1942,birth,Prince Michael of Kent,George Duke of Kent,Marina of Greece,male,
-1944,birth,Richard Duke of Gloucester,Henry Duke of Gloucester,Alice Montagu,male,
-1947,relationship_start,Elizabeth II,Prins Philip,,,male
-1948,birth,Prince Charles,Prins Philip,Elizabeth II,male,
-1950,birth,Princess Anne,Prins Philip,Elizabeth II,female,
+1937,relationship_start,King Edward VIII,Wallis Simpson,,,female,1896
+1942,birth,Prince Michael of Kent,,,male,
+1947,relationship_start,Elizabeth II,Prince Philip,,,male,1921
+1948,birth,Prince Charles,Prince Philip,Elizabeth II,male,
+1950,birth,Princess Anne,Prince Philip,Elizabeth II,female,
 1952,death,King George VI,,,,
-1960,birth,Prince Andrew,Prins Philip,Elizabeth II,male,
-1960,relationship_start,Princess Margaret,Anthony Armstrong-Jones,,,male
-1964,birth,Prince Edward,Prins Philip,Elizabeth II,male,
-1973,relationship_start,Princess Anne,Mark Phillips,,,male
+1960,birth,Prince Andrew,Prince Philip,Elizabeth II,male,
+1960,relationship_start,Princess Margaret,Anthony Armstrong-Jones,,,male,1930
+1964,birth,Prince Edward,Prince Philip,Elizabeth II,male,
+1973,relationship_start,Princess Anne,Mark Phillips,,,male,1948
 1977,birth,Peter Phillips,Mark Phillips,Princess Anne,male,
 1978,birth,Zara Tindall,Mark Phillips,Princess Anne,female,
 1978,relationship_end,Princess Margaret,Anthony Armstrong-Jones,,,
-1981,relationship_start,Prince Charles,Diana Spencer,,,female
+1981,relationship_start,Prince Charles,Diana Spencer,,,female,1961
 1982,birth,Prince William,Prince Charles,Diana Spencer,male,
 1984,birth,Prince Harry,Prince Charles,Diana Spencer,male,
-1986,relationship_start,Prince Andrew,Sarah Ferguson,,,female
+1986,relationship_start,Prince Andrew,Sarah Ferguson,,,female,1959
 1988,birth,Princess Beatrice,Prince Andrew,Sarah Ferguson,female,
 1990,birth,Princess Eugenie,Prince Andrew,Sarah Ferguson,female,
 1992,relationship_end,Princess Anne,Mark Phillips,,,
-1992,relationship_start,Princess Anne,Timothy Laurence,,,male
+1992,relationship_start,Princess Anne,Timothy Laurence,,,male,1955
 1996,relationship_end,Prince Charles,Diana Spencer,,,
 1996,relationship_end,Prince Andrew,Sarah Ferguson,,,
-1999,relationship_start,Prince Edward,Sophie Countess of Wessex,,,female
+1996,death,Diana Spencer,,,,
+1999,relationship_start,Prince Edward,Sophie Countess of Wessex,,,female,1965
 2003,birth,Lady Louise Windsor,Prince Edward,Sophie Countess of Wessex,female,
-2005,relationship_start,Prince Charles,Camilla Parker Bowles,,,female
+2005,relationship_start,Prince Charles,Camilla Parker Bowles,,,female,1947
 2007,birth,James Viscount Severn,Prince Edward,Sophie Countess of Wessex,male,
 2010,birth,Savannah Phillips,Peter Phillips,Autumn Phillips,female,
-2011,relationship_start,Prince William,Catherine Middleton,,,female
+2011,relationship_start,Prince William,Catherine Middleton,,,female,1982
 2012,birth,Isla Phillips,Peter Phillips,Autumn Phillips,female,
 2013,birth,Prince George,Prince William,Catherine Middleton,male,
 2014,birth,Mia Tindall,Mike Tindall,Zara Tindall,female,
 2015,birth,Princess Charlotte,Prince William,Catherine Middleton,female,
 2018,birth,Prince Louis,Prince William,Catherine Middleton,male,
 2018,birth,Lena Tindall,Mike Tindall,Zara Tindall,female,
-2018,relationship_start,Prince Harry,Meghan Markle,,,female
+2018,relationship_start,Prince Harry,Meghan Markle,,,female,1981
 2019,birth,Archie Harrison,Prince Harry,Meghan Markle,male,
+2021,death,Prince Philip,,,,
 2021,birth,Lilibet Diana,Prince Harry,Meghan Markle,female,
-2022,death,Queen Elizabeth II,,,,
+2022,death,Elizabeth II,,,,
 2025,death,Katharine,,,,
