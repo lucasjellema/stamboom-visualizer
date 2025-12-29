@@ -65,6 +65,7 @@ class StateManager {
         this.maxYear = 2025;
         this.isPlaying = false;
         this.playInterval = null;
+        this.labelMode = 'years'; // 'years' or 'age'
     }
 
     loadData(csvString) {
@@ -959,7 +960,18 @@ class FamilyTreeVisualization {
         nodeUpdate.select('.node-label')
             .text(d => {
                 let label = d.name;
-                if (d.birthYear) {
+                const labelMode = app.state.labelMode;
+
+                if (labelMode === 'age' && d.birthYear) {
+                    const isDead = d.deathYear && d.deathYear <= currentYear;
+                    if (isDead) {
+                        const ageAtDeath = d.deathYear - d.birthYear;
+                        label += ` (Died at ${ageAtDeath})`;
+                    } else {
+                        const age = currentYear - d.birthYear;
+                        label += ` (${age})`;
+                    }
+                } else if (d.birthYear) {
                     label += ` (${d.birthYear}`;
                     if (d.deathYear && d.deathYear <= currentYear) {
                         label += ` - ${d.deathYear}`;
@@ -1175,6 +1187,14 @@ class UIController {
         // Close modal on background click
         document.getElementById('eventModal').addEventListener('click', (e) => {
             if (e.target.id === 'eventModal') this.closeModal();
+        });
+
+        // Display Mode Toggle
+        document.querySelectorAll('input[name="displayMode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.state.labelMode = e.target.value;
+                this.updateVisualization();
+            });
         });
     }
 
